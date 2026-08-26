@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 
-export default async function Home() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  redirect(user ? "/dashboard" : "/auth");
+export default function Home() {
+  // Keep the public entry point deterministic and fast. Authenticated users
+  // can enter the protected dashboard directly; unauthenticated users are
+  // redirected back to the sign-in page by the dashboard guard.
+  redirect("/auth");
 }
