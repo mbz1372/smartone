@@ -57,3 +57,34 @@ export async function createActivity(formData: FormData) {
   revalidatePath(`/dashboard/${organizationId}/crm`);
   redirect(`/dashboard/${organizationId}/crm?tab=activities&success=1`);
 }
+
+export async function createDeal(formData: FormData) {
+  const { organizationId, supabase, user } = await context(formData);
+  const title = text.parse(formData.get("title"));
+  let pipelineId = value(formData,"pipelineId");
+  if (!pipelineId) {
+    const { data, error } = await supabase.rpc("ensure_default_pipeline", { target_org: organizationId });
+    if (error || typeof data !== "string") redirect(`/dashboard/${organizationId}/crm?tab=deals&error=${encodeURIComponent(error?.message ?? "خطا در ساخت پایپ‌لاین")}`);
+    pipelineId = data;
+  }
+  const { data: firstStage } = await supabase.from("pipeline_stages").select("id").eq("pipeline_id",pipelineId).order("position").limit(1).maybeSingle();
+  if (!firstStage) redirect(`/dashboard/${organizationId}/crm?tab=deals&error=${encodeURIComponent("مرحله پایپ‌لاین پیدا نشد.")}`);
+  const amount = z.coerce.number().min(0).parse(formData.get("amount") || 0);
+  const { error } = await supabase.from("deals").insert({ organization_id:organizationId,pipeline_id:pipelineId,stage_id:firstStage.id,title,amount,currency:value(formData,"currency")??"IRR",company_id:value(formData,"companyId"),owner_id:user.id });
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=deals&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`); redirect(`/dashboard/${organizationId}/crm?tab=deals&success=1`);
+}
+
+export async function convertLead(formData: FormData) {
+  const { organizationId, supabase } = await context(formData); const leadId = id.parse(formData.get("leadId"));
+  const { error } = await supabase.rpc("convert_lead", { target_lead: leadId });
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=leads&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`); redirect(`/dashboard/${organizationId}/crm?tab=deals&converted=1`);
+}
+
+export async function moveDeal(formData: FormData) {
+  const { organizationId, supabase } = await context(formData); const dealId=id.parse(formData.get("dealId")); const stageId=id.parse(formData.get("stageId"));
+  const { error } = await supabase.from("deals").update({stage_id:stageId,updated_at:new Date().toISOString()}).eq("id",dealId).eq("organization_id",organizationId);
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=deals&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`); redirect(`/dashboard/${organizationId}/crm?tab=deals`);
+}
