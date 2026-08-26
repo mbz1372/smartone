@@ -1,0 +1,59 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+
+const id = z.string().uuid();
+const text = z.string().trim().min(1).max(160);
+
+async function context(formData: FormData) {
+  const organizationId = id.parse(formData.get("organizationId"));
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/auth");
+  return { organizationId, supabase, user };
+}
+
+function value(formData: FormData, key: string) {
+  const result = formData.get(key)?.toString().trim();
+  return result || null;
+}
+
+export async function createCompany(formData: FormData) {
+  const { organizationId, supabase, user } = await context(formData);
+  const name = text.parse(formData.get("name"));
+  const { error } = await supabase.from("companies").insert({ organization_id: organizationId, name, phone: value(formData,"phone"), website: value(formData,"website"), industry: value(formData,"industry"), city: value(formData,"city"), owner_id: user.id });
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=companies&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm?tab=companies&success=1`);
+}
+
+export async function createContact(formData: FormData) {
+  const { organizationId, supabase, user } = await context(formData);
+  const firstName = text.parse(formData.get("firstName"));
+  const { error } = await supabase.from("contacts").insert({ organization_id: organizationId, first_name: firstName, last_name: value(formData,"lastName"), email: value(formData,"email"), phone: value(formData,"phone"), job_title: value(formData,"jobTitle"), company_id: value(formData,"companyId"), owner_id: user.id });
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=contacts&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm?tab=contacts&success=1`);
+}
+
+export async function createLead(formData: FormData) {
+  const { organizationId, supabase, user } = await context(formData);
+  const title = text.parse(formData.get("title"));
+  const { error } = await supabase.from("leads").insert({ organization_id: organizationId, title, first_name: value(formData,"firstName"), last_name: value(formData,"lastName"), company_name: value(formData,"companyName"), email: value(formData,"email"), phone: value(formData,"phone"), source: value(formData,"source"), owner_id: user.id });
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=leads&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm?tab=leads&success=1`);
+}
+
+export async function createActivity(formData: FormData) {
+  const { organizationId, supabase, user } = await context(formData);
+  const subject = text.parse(formData.get("subject"));
+  const activityType = z.enum(["task","call","meeting","email","note"]).parse(formData.get("type"));
+  const { error } = await supabase.from("activities").insert({ organization_id: organizationId, subject, type: activityType, description: value(formData,"description"), due_at: value(formData,"dueAt"), assigned_to: user.id });
+  if (error) redirect(`/dashboard/${organizationId}/crm?tab=activities&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm?tab=activities&success=1`);
+}
