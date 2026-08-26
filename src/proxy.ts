@@ -6,5 +6,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  // Session refresh is only required for authenticated application routes.
+  // Running a remote Supabase auth request for public pages made the sign-in
+  // screen wait on the database region before it could render.
+  matcher: ["/dashboard/:path*"],
 };
