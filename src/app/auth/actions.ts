@@ -26,7 +26,11 @@ export async function signUp(formData: FormData) {
   const parsed = credentials.safeParse(Object.fromEntries(formData));
   if (!parsed.success) redirect(destination(parsed.error.issues[0]?.message ?? "اطلاعات نامعتبر است."));
   const supabase = await createClient();
-  const { data, error } = await supabase.auth.signUp(parsed.data);
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://smartone-alpha.vercel.app";
+  const { data, error } = await supabase.auth.signUp({
+    ...parsed.data,
+    options: { emailRedirectTo: `${appUrl}/auth/callback` },
+  });
   if (error) redirect(destination(error.message));
   if (!data.session) redirect(destination("لینک تأیید برای ایمیل شما ارسال شد.", "success"));
   redirect("/dashboard");
