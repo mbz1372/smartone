@@ -9,7 +9,8 @@ export async function createOrganization(formData: FormData) {
   const parsed = z.string().trim().min(2).max(80).safeParse(formData.get("name"));
   if (!parsed.success) redirect("/dashboard?error=" + encodeURIComponent("نام سازمان باید بین ۲ تا ۸۰ کاراکتر باشد."));
   const supabase = await createClient();
-  const { error } = await supabase.rpc("create_organization", { organization_name: parsed.data });
+  const { data: organizationId, error } = await supabase.rpc("create_organization", { organization_name: parsed.data });
   if (error) redirect("/dashboard?error=" + encodeURIComponent(error.message));
   revalidatePath("/dashboard");
+  if (typeof organizationId === "string") redirect(`/dashboard/${organizationId}`);
 }
