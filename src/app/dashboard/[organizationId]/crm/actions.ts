@@ -88,3 +88,50 @@ export async function moveDeal(formData: FormData) {
   if (error) redirect(`/dashboard/${organizationId}/crm?tab=deals&error=${encodeURIComponent(error.message)}`);
   revalidatePath(`/dashboard/${organizationId}/crm`); redirect(`/dashboard/${organizationId}/crm?tab=deals`);
 }
+
+const entityConfig = {
+  companies: { table: "companies", tab: "companies" },
+  contacts: { table: "contacts", tab: "contacts" },
+  leads: { table: "leads", tab: "leads" },
+  deals: { table: "deals", tab: "deals" },
+  activities: { table: "activities", tab: "activities" },
+} as const;
+
+export async function updateRecord(formData: FormData) {
+  const { organizationId, supabase } = await context(formData);
+  const entity = z.enum(["companies","contacts","leads","deals","activities"]).parse(formData.get("entity"));
+  const recordId = id.parse(formData.get("recordId"));
+  const config = entityConfig[entity];
+  const common = { updated_at: new Date().toISOString() };
+  let payload: Record<string, string | number | null> = common;
+  if (entity === "companies") payload = { ...common, name:text.parse(formData.get("name")), phone:value(formData,"phone"), website:value(formData,"website"), industry:value(formData,"industry"), city:value(formData,"city") };
+  if (entity === "contacts") payload = { ...common, first_name:text.parse(formData.get("firstName")), last_name:value(formData,"lastName"), email:value(formData,"email"), phone:value(formData,"phone"), job_title:value(formData,"jobTitle"), company_id:value(formData,"companyId") };
+  if (entity === "leads") payload = { ...common, title:text.parse(formData.get("title")), first_name:value(formData,"firstName"), last_name:value(formData,"lastName"), company_name:value(formData,"companyName"), email:value(formData,"email"), phone:value(formData,"phone"), source:value(formData,"source"), status:z.enum(["new","working","qualified","unqualified","converted"]).parse(formData.get("status")), score:z.coerce.number().min(0).max(100).parse(formData.get("score") || 0) };
+  if (entity === "deals") payload = { ...common, title:text.parse(formData.get("title")), amount:z.coerce.number().min(0).parse(formData.get("amount") || 0), currency:value(formData,"currency")??"IRR", company_id:value(formData,"companyId"), expected_close_date:value(formData,"expectedCloseDate"), status:z.enum(["open","won","lost"]).parse(formData.get("status")) };
+  if (entity === "activities") payload = { subject:text.parse(formData.get("subject")), type:z.enum(["task","call","meeting","email","note"]).parse(formData.get("type")), description:value(formData,"description"), due_at:value(formData,"dueAt") };
+  const { error } = await supabase.from(config.table).update(payload).eq("id",recordId).eq("organization_id",organizationId);
+  if (error) redirect(`/dashboard/${organizationId}/crm/${entity}/${recordId}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm/${entity}/${recordId}?success=1`);
+}
+
+export async function deleteRecord(formData: FormData) {
+  const { organizationId, supabase } = await context(formData);
+  const entity = z.enum(["companies","contacts","leads","deals","activities"]).parse(formData.get("entity"));
+  const recordId = id.parse(formData.get("recordId"));
+  const config = entityConfig[entity];
+  const { error } = await supabase.from(config.table).delete().eq("id",recordId).eq("organization_id",organizationId);
+  if (error) redirect(`/dashboard/${organizationId}/crm/${entity}/${recordId}?error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm?tab=${config.tab}&deleted=1`);
+}
+
+export async function toggleActivity(formData: FormData) {
+  const { organizationId, supabase } = await context(formData);
+  const activityId=id.parse(formData.get("recordId"));
+  const completed=formData.get("completed")==="true";
+  const { error }=await supabase.from("activities").update({completed_at:completed?null:new Date().toISOString()}).eq("id",activityId).eq("organization_id",organizationId);
+  if(error) redirect(`/dashboard/${organizationId}/crm?tab=activities&error=${encodeURIComponent(error.message)}`);
+  revalidatePath(`/dashboard/${organizationId}/crm`);
+  redirect(`/dashboard/${organizationId}/crm?tab=activities`);
+}
