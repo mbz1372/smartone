@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/app/auth/actions";
+import { Icon } from "@/components/ui/icon";
 import { createOrganization } from "./actions";
 
-const modules = ["CRM و فروش", "مالی و حسابداری", "خرید و تأمین", "انبار", "منابع انسانی", "پروژه‌ها", "خدمات مشتریان", "اتوماسیون"];
 type Props = { searchParams: Promise<{ error?: string }> };
 
 export default async function Dashboard({ searchParams }: Props) {
@@ -17,12 +17,55 @@ export default async function Dashboard({ searchParams }: Props) {
     searchParams,
   ]);
   const isSuperAdmin = Boolean(adminRows?.length);
-  return <main className="shell">
-    <aside><div className="brand">Smart<span>One</span></div><nav>{modules.map((item, index) => <button className={index === 0 ? "active" : ""} key={item}>{item}</button>)}</nav><form action={signOut}><button className="logout">خروج از حساب</button></form></aside>
-    <section className="content"><header><div><p>{user.email} {isSuperAdmin && <span className="admin-badge">SUPER ADMIN</span>}</p><h1>فضای کاری شما</h1></div></header>
-      {message.error && <p className="form-message error">{message.error}</p>}
-      <section className="workspace-grid"><article className="panel"><h2>سازمان‌های من</h2>{organizations?.length ? organizations.map(org => <div className="org-row" key={org.id}><div className="org-avatar">{org.name.slice(0,1)}</div><div><strong>{org.name}</strong><span>{org.slug}</span></div><Link className="secondary button-link" href={`/dashboard/${org.id}`}>ورود به سازمان</Link></div>) : <div className="empty"><strong>هنوز سازمانی ندارید</strong><span>اولین فضای کاری خود را ایجاد کنید.</span></div>}</article>
-      <article className="panel"><h2>ساخت سازمان جدید</h2><p className="muted">هر سازمان اطلاعات، اعضا و سطح دسترسی مستقل دارد.</p><form action={createOrganization}><label>نام سازمان<input name="name" required minLength={2} maxLength={80} placeholder="مثلاً اسمارت‌سینک" /></label><button className="primary wide">ایجاد فضای کاری</button></form></article></section>
-    </section>
-  </main>;
+
+  return (
+    <main className="workspace-hub">
+      <header className="hub-header">
+        <Link className="v2-brand hub-brand" href="/dashboard"><span className="v2-brand-mark">S</span><span>SmartOne<small>BUSINESS OS</small></span></Link>
+        <div className="hub-user">
+          <span>{user.email?.slice(0, 1).toUpperCase()}</span>
+          <div><strong>{user.email}</strong><small>{isSuperAdmin ? "مدیر کل پلتفرم" : "حساب کاربری"}</small></div>
+          {isSuperAdmin ? <b>SUPER ADMIN</b> : null}
+          <form action={signOut}><button type="submit"><Icon name="logout" size={16} /> خروج</button></form>
+        </div>
+      </header>
+
+      <section className="hub-hero">
+        <div><p>فضای کاری SmartOne</p><h1>کسب‌وکارتان را از یک نقطه مدیریت کنید</h1><span>یک سازمان را انتخاب کنید یا برای تیم جدید فضای مستقل بسازید.</span></div>
+        <div className="hub-summary"><strong>{(organizations?.length ?? 0).toLocaleString("fa-IR")}</strong><span>سازمان فعال</span></div>
+      </section>
+
+      {message.error ? <p className="form-message error hub-notice">{message.error}</p> : null}
+
+      <section className="hub-layout">
+        <article className="hub-organizations">
+          <div className="hub-section-title"><div><h2>سازمان‌های من</h2><p>ورود امن به داده‌ها و ماژول‌های هر سازمان</p></div></div>
+          {organizations?.length ? (
+            <div className="organization-cards">
+              {organizations.map((organization) => (
+                <Link className="organization-card" href={`/dashboard/${organization.id}`} key={organization.id}>
+                  <span>{organization.name.slice(0, 1)}</span>
+                  <div><strong>{organization.name}</strong><small>{organization.slug}</small><p>CRM · مالی · عملیات · منابع انسانی</p></div>
+                  <b>ورود به فضای کاری ←</b>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="hub-empty"><span><Icon name="building" size={28} /></span><strong>هنوز سازمانی ندارید</strong><p>اولین فضای کاری مستقل خود را از فرم روبه‌رو ایجاد کنید.</p></div>
+          )}
+        </article>
+
+        <aside className="create-workspace-card">
+          <span className="create-icon"><Icon name="building" size={24} /></span>
+          <h2>سازمان جدید</h2>
+          <p>اطلاعات، اعضا و سطح دسترسی این فضا کاملاً مستقل خواهد بود.</p>
+          <form action={createOrganization}>
+            <label>نام سازمان<input name="name" required minLength={2} maxLength={80} placeholder="مثلاً هتل ایران" /></label>
+            <button className="btn btn-primary" type="submit">ایجاد و ورود به فضای کاری</button>
+          </form>
+          <small><Icon name="help" size={14} /> بعداً می‌توانید اعضای تیم را اضافه کنید.</small>
+        </aside>
+      </section>
+    </main>
+  );
 }
