@@ -8,7 +8,7 @@ const tables=z.enum(["products","invoices","expenses","suppliers","purchase_orde
 const modules=z.enum(["finance","catalog","procurement","inventory","hr","projects","support"]);
 const val=(f:FormData,k:string)=>f.get(k)?.toString().trim()||null;
 export async function createErpRecord(formData:FormData){
- const organizationId=z.string().uuid().parse(formData.get("organizationId")); const module=modules.parse(formData.get("module")); const table=tables.parse(formData.get("table")) as ErpTable;
+ const organizationId=z.string().uuid().parse(formData.get("organizationId")); const moduleKey=modules.parse(formData.get("module")); const table=tables.parse(formData.get("table")) as ErpTable;
  const supabase=await createClient(); const{data:{user}}=await supabase.auth.getUser(); if(!user)redirect("/auth");
  const base={organization_id:organizationId,created_by:user.id}; let payload:Record<string,unknown>=base;
  if(table==="products")payload={...base,name:val(formData,"name"),sku:val(formData,"sku"),type:val(formData,"type")||"service",sale_price:Number(val(formData,"salePrice")||0),cost_price:Number(val(formData,"costPrice")||0),unit:val(formData,"unit")||"عدد"};
@@ -22,6 +22,6 @@ export async function createErpRecord(formData:FormData){
  if(table==="projects")payload={...base,name:val(formData,"name"),description:val(formData,"description"),status:"planned",start_date:val(formData,"date"),due_date:val(formData,"dueDate")};
  if(table==="project_tasks")payload={...base,title:val(formData,"title"),project_id:val(formData,"relationId"),priority:val(formData,"priority")||"medium",due_date:val(formData,"date")};
  if(table==="tickets")payload={...base,subject:val(formData,"title"),priority:val(formData,"priority")||"normal",status:"open"};
- const{error}=await supabase.from(table).insert(payload); if(error)redirect(`/dashboard/${organizationId}/${module}?tab=${table}&error=${encodeURIComponent(error.message)}`);
- revalidatePath(`/dashboard/${organizationId}/${module}`); redirect(`/dashboard/${organizationId}/${module}?tab=${table}&success=1`);
+ const{error}=await supabase.from(table).insert(payload); if(error)redirect(`/dashboard/${organizationId}/${moduleKey}?tab=${table}&error=${encodeURIComponent(error.message)}`);
+ revalidatePath(`/dashboard/${organizationId}/${moduleKey}`); redirect(`/dashboard/${organizationId}/${moduleKey}?tab=${table}&success=1`);
 }
